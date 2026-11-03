@@ -749,18 +749,18 @@ function accountBox(){
 }
 function pwForm(){
   var pw=inp('s-pw','password','',{autocomplete:'new-password'});
-  openModal('تغيير كلمة السر',el('div',{class:'fields'},field('كلمة السر الجديدة',pw,'8 أحرف على الأقل',true)),function(){
-    if(pw.value.length<8)return 'كلمة السر لازم تكون 8 أحرف على الأقل';
+  openModal('تغيير كلمة السر',el('div',{class:'fields'},field('كلمة السر الجديدة',pw,'6 أحرف على الأقل',true)),function(){
+    if(pw.value.length<6)return 'كلمة السر لازم تكون 6 أحرف على الأقل';
     return sb.auth.updateUser({password:pw.value}).then(ok).then(function(){toast('تم تغيير كلمة السر');});
   });
 }
 
 function authErr(e){
   var m=(e&&e.message)||'';
-  if(/Invalid login/i.test(m))return 'البريد أو كلمة السر غير صحيحة';
+  if(/Invalid login/i.test(m))return 'الاسم أو كلمة السر غير صحيحة';
   if(/not confirmed/i.test(m))return 'لازم تأكد بريدك من الرسالة اللي وصلتك أولاً';
-  if(/already registered|already been registered/i.test(m))return 'هذا البريد مسجّل من قبل، سجّل الدخول';
-  if(/Password should|weak/i.test(m))return 'كلمة السر ضعيفة، استخدم 8 أحرف على الأقل';
+  if(/already registered|already been registered/i.test(m))return 'هذا الاسم مسجّل من قبل، سجّل الدخول';
+  if(/Password should|weak/i.test(m))return 'كلمة السر ضعيفة، استخدم 6 أحرف على الأقل';
   if(/rate limit|too many/i.test(m))return 'محاولات كثيرة، انتظر قليلاً ثم أعد المحاولة';
   if(/fetch|network/i.test(m))return 'لا يوجد اتصال بالإنترنت';
   return 'تعذّر تنفيذ العملية. التفاصيل: '+(m||'غير معروف');
@@ -788,14 +788,14 @@ function drawAuth(){
     $('#view').replaceChildren(cform);
     return;
   }
-  var email=inp('a-email','email','',{autocomplete:'username',dir:'ltr',inputmode:'email'});
+  var email=inp('a-email','text','',{autocomplete:'username',dir:'ltr',autocapitalize:'none'});
   var pw=inp('a-pw','password','',{autocomplete:authMode==='up'?'new-password':'current-password'});
   var go2=el('button',{class:'btn primary',type:'submit'},authMode==='up'?'إنشاء الحساب':'دخول');
   var form=el('form',{class:'card auth',novalidate:true,onsubmit:function(ev){
     ev.preventDefault();err.hidden=true;
-    var e=email.value.trim(),p=pw.value;
-    if(!e||!p){fail('اكتب البريد وكلمة السر');return;}
-    if(authMode==='up'&&p.length<8){fail('كلمة السر لازم تكون 8 أحرف على الأقل');return;}
+    var e=email.value.trim().toLowerCase(),p=pw.value;if(e&&e.indexOf('@')<0)e=e+'@bldg.app';
+    if(!e||!p){fail('اكتب اسم المستخدم وكلمة السر');return;}
+    if(authMode==='up'&&p.length<6){fail('كلمة السر لازم تكون 6 أحرف على الأقل');return;}
     go2.disabled=true;
     var run=authMode==='up'?sb.auth.signUp({email:e,password:p}):sb.auth.signInWithPassword({email:e,password:p});
     run.then(ok).then(function(r){
@@ -806,7 +806,7 @@ function drawAuth(){
   }},
     el('h2',{},authMode==='up'?'حساب جديد':'تسجيل الدخول'),
     authMsg?el('p',{class:'hint'},authMsg):null,
-    field('البريد الإلكتروني',email),
+    field('اسم المستخدم',email),
     field('كلمة السر',pw),
     err,go2,
     btn(authMode==='up'?'عندي حساب':'أول مرة؟ أنشئ الحساب',function(){authMode=authMode==='up'?'in':'up';authMsg='';render();}));
