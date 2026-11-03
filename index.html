@@ -763,7 +763,7 @@ function authErr(e){
   if(/Password should|weak/i.test(m))return 'كلمة السر ضعيفة، استخدم 8 أحرف على الأقل';
   if(/rate limit|too many/i.test(m))return 'محاولات كثيرة، انتظر قليلاً ثم أعد المحاولة';
   if(/fetch|network/i.test(m))return 'لا يوجد اتصال بالإنترنت';
-  return 'تعذّر تنفيذ العملية، حاول مرة ثانية';
+  return 'تعذّر تنفيذ العملية. التفاصيل: '+(m||'غير معروف');
 }
 
 function drawAuth(){
