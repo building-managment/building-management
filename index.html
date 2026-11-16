@@ -519,7 +519,7 @@ function viewPays(){
     return el('div',{class:'item nobadge'},
       el('div',{class:'main'},el('div',{class:'t'},aptName(p.aptId)),el('div',{class:'s'},ltr(p.date),p.note?(' · '+p.note):'')),
       el('div',{class:'end'},money(p.amount)),
-      canWrite?el('div',{class:'acts'},delBtn('حذف',function(){del('pays',p.id);})):null);
+      el('div',{class:'acts'},btn('إيصال القبض',function(ev){shareReceipt(p,ev.currentTarget);},'sm primary'),canWrite?delBtn('حذف',function(){del('pays',p.id);}):null));
   });
   return [].concat(banners(),[
     el('div',{class:'bar'},monthSel('m-pays',sel.pays,function(v){sel.pays=v;render();}),
@@ -667,10 +667,10 @@ function savePdfBlob(name,blob){
   var a=el('a',{href:URL.createObjectURL(blob),download:name});
   document.body.append(a);a.click();a.remove();
 }
-function sharePDF(r,b){
+function pdfShare(box,name,title,b){
   if(!window.jspdf||!window.html2canvas){toast('تعذّر تحميل أدوات الـ PDF، تأكد من الإنترنت');return;}
   b.disabled=true;toast('جاري تجهيز الملف...');
-  var box=reportNode(r);document.body.append(box);
+  document.body.append(box);
   var fonts=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   fonts.then(function(){return window.html2canvas(box,{scale:2,backgroundColor:'#ffffff'});}).then(function(canvas){
     var W=box.offsetWidth,sc=canvas.width/W;
@@ -695,14 +695,45 @@ function sharePDF(r,b){
     }
     box.remove();
     var blob=pdf.output('blob');
-    var name=r.title+(r.sub?(' '+r.sub):'')+'.pdf';
     var file=new File([blob],name,{type:'application/pdf'});
     b.disabled=false;
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      return navigator.share({files:[file],title:r.title}).catch(function(e){if(e&&e.name!=='AbortError')savePdfBlob(name,blob);});
+      return navigator.share({files:[file],title:title}).catch(function(e){if(e&&e.name!=='AbortError')savePdfBlob(name,blob);});
     }
     savePdfBlob(name,blob);toast('تم تنزيل الملف، شاركه من مجلد التنزيلات');
   }).catch(function(){box.remove();b.disabled=false;toast('تعذّر تجهيز الملف');});
+}
+function sharePDF(r,b){pdfShare(reportNode(r),r.title+(r.sub?(' '+r.sub):'')+'.pdf',r.title,b);}
+function receiptNo(p){var k=String(p.id).replace(/-/g,'');return /^\d+$/.test(k)?('R-'+('0000'+k).slice(-5)):('R-'+k.slice(0,6).toUpperCase());}
+function receiptNode(p){
+  var a=aptById(p.aptId)||{no:'',floor:'',resident:'',type:''};
+  var cur=esc(S.cfg.cur),L=function(t){return '<span dir="ltr">'+esc(t)+'</span>';};
+  var row=function(k,v){return '<tr><td style="padding:10px 12px;border-bottom:1px solid #ddd;width:32%;color:#555;font-size:15px">'+k+'</td><td style="padding:10px 12px;border-bottom:1px solid #ddd;font-size:17px;font-weight:600">'+v+'</td></tr>';};
+  var bal=aptBal(a);
+  var balTxt=bal>0.005?('عليها '+L(fmtN(bal))+' '+cur):bal<-0.005?('رصيد زائد '+L(fmtN(-bal))+' '+cur):'مسدّدة بالكامل';
+  var box=el('div',{});
+  box.style.cssText='position:fixed;left:-10000px;top:0;width:760px;background:#fff;color:#111;direction:rtl;font-family:"IBM Plex Sans Arabic",Tahoma,Arial,sans-serif';
+  box.innerHTML='<div style="border:2px solid #1B5E7B;border-radius:10px;padding:28px 30px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1B5E7B;padding-bottom:14px;margin-bottom:18px">'+
+      '<div><div style="font-size:24px;font-weight:700;color:#1B5E7B">'+esc(S.cfg.name)+'</div><div style="font-size:20px;margin-top:6px;font-weight:600">إيصال قبض</div></div>'+
+      '<div style="text-align:left;direction:ltr;font-size:15px;line-height:1.8"><div>No: '+esc(receiptNo(p))+'</div><div>Date: '+esc(p.date||'')+'</div></div>'+
+    '</div>'+
+    '<table style="border-collapse:collapse;width:100%">'+
+      row('استلمنا من',esc(a.resident||'')+(a.type?(' ('+esc(a.type)+')'):''))+
+      row('الشقة',esc(a.no)+(a.floor?(' - الطابق '+esc(a.floor)):''))+
+      row('المبلغ المقبوض','<span style="font-size:24px;color:#1B5E7B">'+L(fmtN(p.amount))+' '+cur+'</span>')+
+      row('وذلك عن',esc(p.note||'اشتراك البناية'))+
+      row('وضع الشقة حتى اليوم',balTxt)+
+    '</table>'+
+    '<div style="display:flex;justify-content:space-between;margin-top:46px;font-size:15px;color:#555">'+
+      '<div style="text-align:center;min-width:180px">المستلم<div style="border-top:1px solid #777;margin-top:34px"></div></div>'+
+      '<div style="text-align:center;min-width:180px">الدافع<div style="border-top:1px solid #777;margin-top:34px"></div></div>'+
+    '</div></div>';
+  return box;
+}
+function shareReceipt(p,b){
+  var a=aptById(p.aptId);
+  pdfShare(receiptNode(p),'إيصال قبض '+receiptNo(p)+(a?(' شقة '+a.no):'')+'.pdf','إيصال قبض '+receiptNo(p),b);
 }
 function viewReports(){
   if(!aptById(rep.apt))rep.apt=S.apts[0]?S.apts[0].id:null;
