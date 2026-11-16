@@ -668,6 +668,10 @@ function savePdfBlob(name,blob){
   document.body.append(a);a.click();a.remove();
 }
 function pdfShare(box,name,title,b){
+  if(b._pdf){
+    var d=b._pdf;b._pdf=null;b.textContent=d.label;
+    return navigator.share({files:[d.file],title:d.title}).catch(function(e){if(!e||e.name!=='AbortError')savePdfBlob(d.name,d.blob);});
+  }
   if(!window.jspdf||!window.html2canvas){toast('تعذّر تحميل أدوات الـ PDF، تأكد من الإنترنت');return;}
   b.disabled=true;toast('جاري تجهيز الملف...');
   document.body.append(box);
@@ -698,10 +702,18 @@ function pdfShare(box,name,title,b){
     var file=new File([blob],name,{type:'application/pdf'});
     b.disabled=false;
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      return navigator.share({files:[file],title:title}).catch(function(e){if(e&&e.name!=='AbortError')savePdfBlob(name,blob);});
+      return navigator.share({files:[file],title:title}).catch(function(e){
+        if(e&&e.name==='AbortError')return;
+        if(e&&e.name==='NotAllowedError'){
+          b._pdf={file:file,blob:blob,name:name,title:title,label:b.textContent};
+          b.textContent='الملف جاهز، اضغط للمشاركة';toast('الملف جاهز، اضغط الزر مرة ثانية');
+          return;
+        }
+        savePdfBlob(name,blob);toast('تم تنزيل الملف');
+      });
     }
     savePdfBlob(name,blob);toast('تم تنزيل الملف، شاركه من مجلد التنزيلات');
-  }).catch(function(){box.remove();b.disabled=false;toast('تعذّر تجهيز الملف');});
+  }).catch(function(e){box.remove();b.disabled=false;toast('تعذّر تجهيز الملف: '+((e&&(e.message||e.name))||''));});
 }
 function sharePDF(r,b){pdfShare(reportNode(r),r.title+(r.sub?(' '+r.sub):'')+'.pdf',r.title,b);}
 function receiptNo(p){var k=String(p.id).replace(/-/g,'');return /^\d+$/.test(k)?('R-'+('0000'+k).slice(-5)):('R-'+k.slice(0,6).toUpperCase());}
